@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { pesanRateLimit, rateLimit, resetRateLimit } from "@/lib/rate-limit";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("rateLimit", () => {
   it("mengizinkan percobaan sebanyak batas lalu memblokir", () => {
@@ -19,13 +23,21 @@ describe("rateLimit", () => {
   });
 
   it("tetap memblokir selama masa blokir walau jendela sudah lewat", () => {
+    // Waktu dipalsukan supaya hasilnya tidak bergantung kecepatan mesin.
+    vi.useFakeTimers();
     const key = `uji-blokir-${Math.random()}`;
-    const opsi = { key, limit: 1, windowMs: 1, blockMs: 60_000 };
+    const opsi = { key, limit: 1, windowMs: 1_000, blockMs: 60_000 };
 
     expect(rateLimit(opsi).ok).toBe(true);
     expect(rateLimit(opsi).ok).toBe(false);
-    // Jendela 1 ms sudah lewat, tetapi blokir 60 detik masih berlaku.
+
+    // Jendela 1 detik sudah lewat, tetapi blokir 60 detik masih berlaku.
+    vi.advanceTimersByTime(5_000);
     expect(rateLimit(opsi).ok).toBe(false);
+
+    // Setelah masa blokir habis, percobaan diterima lagi.
+    vi.advanceTimersByTime(60_000);
+    expect(rateLimit(opsi).ok).toBe(true);
   });
 
   it("menghitung mundur sisa blokir", () => {

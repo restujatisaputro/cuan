@@ -15,6 +15,7 @@ import {
   INVESTMENT_ACCOUNT_NAME,
 } from "../src/lib/constants";
 import { roundToMoney } from "../src/lib/money";
+import { hitungPosisi } from "../src/lib/finance/portfolio";
 
 const prisma = new PrismaClient();
 
@@ -414,8 +415,13 @@ async function seedInvestments(user: SeededUser, today: Date): Promise<void> {
       },
     });
 
-    let totalUnits = new Prisma.Decimal(0);
-    let totalCost = new Prisma.Decimal(0);
+    const riwayat: {
+      action: "BUY";
+      units: string;
+      pricePerUnit: string;
+      fee: bigint;
+      amount: bigint;
+    }[] = [];
 
     for (const buy of asset.buys) {
       const date = new Date(
@@ -452,17 +458,23 @@ async function seedInvestments(user: SeededUser, today: Date): Promise<void> {
         },
       });
 
-      totalUnits = totalUnits.add(units);
-      totalCost = totalCost.add(units.mul(price));
+      riwayat.push({
+        action: "BUY",
+        units: units.toString(),
+        pricePerUnit: price.toString(),
+        fee,
+        amount,
+      });
     }
 
+    // Posisi dihitung dengan fungsi yang sama seperti aplikasi, sehingga biaya
+    // transaksi ikut masuk ke harga perolehan rata-rata.
+    const posisi = hitungPosisi(riwayat);
     await prisma.investmentAsset.update({
       where: { id: created.id },
       data: {
-        units: totalUnits.toString(),
-        avgCost: totalUnits.isZero()
-          ? "0"
-          : totalCost.div(totalUnits).toDecimalPlaces(6).toString(),
+        units: posisi.units.toString(),
+        avgCost: posisi.avgCost.toDecimalPlaces(6).toString(),
       },
     });
   }

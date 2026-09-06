@@ -115,3 +115,25 @@ export function formatRupiahRingkas(value: bigint | number): string {
 export function serializeMoney(value: bigint): string {
   return value.toString();
 }
+
+const unitFormatter = new Intl.NumberFormat("id-ID", {
+  maximumFractionDigits: 6,
+});
+
+const hargaFormatter = new Intl.NumberFormat("id-ID", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 4,
+});
+
+/**
+ * Format kuantitas unit investasi, mis. "3.500" atau "0,123457".
+ * Menerima string Decimal agar presisinya utuh sampai saat diformat.
+ */
+export function formatUnit(value: string | number): string {
+  return unitFormatter.format(Number(value));
+}
+
+/** Format harga per unit yang boleh berpecahan, mis. "Rp 1.287,4521". */
+export function formatHarga(value: string | number): string {
+  return `Rp ${hargaFormatter.format(Number(value))}`;
+}
