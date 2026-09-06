@@ -3,6 +3,7 @@ import {
   ArrowLeftRight,
   FolderTree,
   LayoutDashboard,
+  PiggyBank,
   ShieldCheck,
   UserRound,
   Wallet,
@@ -14,7 +15,7 @@ export type NavItem = {
   icon: LucideIcon;
   /** Hanya tampil untuk pengguna ADMIN. */
   adminOnly?: boolean;
-  /** Ikut tampil pada navigasi bawah versi ponsel (maksimal empat). */
+  /** Ikut tampil pada navigasi bawah versi ponsel. */
   utama?: boolean;
 };
 
@@ -25,6 +26,7 @@ export type NavItem = {
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/dasbor", label: "Dasbor", icon: LayoutDashboard, utama: true },
   { href: "/transaksi", label: "Transaksi", icon: ArrowLeftRight, utama: true },
+  { href: "/anggaran", label: "Anggaran", icon: PiggyBank, utama: true },
   { href: "/akun", label: "Akun", icon: Wallet, utama: true },
   { href: "/kategori", label: "Kategori", icon: FolderTree, utama: true },
   { href: "/profil", label: "Profil", icon: UserRound },
