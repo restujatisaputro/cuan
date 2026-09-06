@@ -1,0 +1,299 @@
+// ---------------------------------------------------------------------------
+// Cuan - Aplikasi Pencatatan Keuangan Pribadi
+// ---------------------------------------------------------------------------
+// Catatan portabilitas (SQLite -> PostgreSQL):
+//  * Semua kolom "enum" disimpan sebagai String karena SQLite tidak mendukung
+//    enum di Prisma. Nilai divalidasi di aplikasi (Zod). Saat pindah ke
+//    PostgreSQL, String ini dapat diubah menjadi enum tanpa mengubah query.
+//  * Tidak ada fitur khusus SQLite yang dipakai (tanpa raw SQL, tanpa JSON).
+//  * Uang disimpan sebagai BigInt dalam rupiah penuh (tanpa desimal) agar tidak
+//    terbentur batas 32-bit; memetakan ke integer 64-bit baik di SQLite maupun
+//    PostgreSQL. Di TypeScript tipenya bigint dan tidak boleh dicampur number.
+//    Kuantitas dan harga per unit investasi memakai Decimal karena butuh pecahan.
+//  * Suku bunga disimpan sebagai basis point (Int): 1250 = 12,50% per tahun.
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// --------------------------------- Pengguna ---------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("USER") // ADMIN | USER
+  currency     String   @default("IDR")
+  timezone     String   @default("Asia/Jakarta")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  accounts         Account[]
+  categories       Category[]
+  transactions     Transaction[]
+  recurringRules   RecurringRule[]
+  debts            Debt[]
+  savingsGoals     SavingsGoal[]
+  investmentAssets InvestmentAsset[]
+  budgets          Budget[]
+
+  @@index([role])
+}
+
+// ---------------------------------- Akun ------------------------------------
+
+model Account {
+  id             String   @id @default(cuid())
+  userId         String
+  name           String
+  type           String // CASH | BANK | EWALLET | RECEIVABLE | CREDIT_CARD | LOAN
+  openingBalance BigInt   @default(0)
+  currency       String   @default("IDR")
+  isArchived     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user                 User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions         Transaction[]   @relation("TransaksiAkunAsal")
+  transfersIn          Transaction[]   @relation("TransaksiAkunTujuan")
+  recurringRules       RecurringRule[] @relation("AturanAkunAsal")
+  recurringRulesTarget RecurringRule[] @relation("AturanAkunTujuan")
+  savingsGoals         SavingsGoal[]
+
+  @@index([userId])
+  @@index([userId, isArchived])
+}
+
+// -------------------------------- Kategori ----------------------------------
+
+model Category {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  kind      String // INCOME | EXPENSE
+  parentId  String?
+  icon      String?
+  color     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent         Category?       @relation("SubKategori", fields: [parentId], references: [id], onDelete: SetNull)
+  children       Category[]      @relation("SubKategori")
+  transactions   Transaction[]
+  recurringRules RecurringRule[]
+  budgets        Budget[]
+
+  @@index([userId])
+  @@index([userId, kind])
+  @@index([parentId])
+}
+
+// -------------------------------- Transaksi ---------------------------------
+
+model Transaction {
+  id            String   @id @default(cuid())
+  userId        String
+  date          DateTime
+  type          String // INCOME | EXPENSE | TRANSFER
+  amount        BigInt // rupiah penuh, selalu positif
+  accountId     String
+  toAccountId   String? // hanya untuk TRANSFER
+  categoryId    String?
+  note          String?
+  tags          String? // dipisahkan koma, portabel ke PostgreSQL
+  attachmentUrl String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account   Account   @relation("TransaksiAkunAsal", fields: [accountId], references: [id], onDelete: Cascade)
+  toAccount Account?  @relation("TransaksiAkunTujuan", fields: [toAccountId], references: [id], onDelete: SetNull)
+  category  Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  debtPayment         DebtPayment?
+  savingsContribution SavingsContribution?
+  investmentTx        InvestmentTx?
+
+  @@index([userId, date])
+  @@index([userId, type, date])
+  @@index([userId, accountId, date])
+  @@index([userId, categoryId, date])
+  @@index([toAccountId])
+}
+
+// --------------------------- Transaksi Berulang -----------------------------
+
+model RecurringRule {
+  id          String    @id @default(cuid())
+  userId      String
+  name        String
+  type        String // INCOME | EXPENSE | TRANSFER
+  amount      BigInt
+  accountId   String
+  toAccountId String?
+  categoryId  String?
+  note        String?
+  tags        String?
+  frequency   String // DAILY | WEEKLY | MONTHLY | YEARLY
+  interval    Int       @default(1) // setiap n periode
+  nextRunDate DateTime
+  endDate     DateTime?
+  lastRunAt   DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account   Account   @relation("AturanAkunAsal", fields: [accountId], references: [id], onDelete: Cascade)
+  toAccount Account?  @relation("AturanAkunTujuan", fields: [toAccountId], references: [id], onDelete: SetNull)
+  category  Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([isActive, nextRunDate])
+}
+
+// ----------------------------- Utang & Piutang ------------------------------
+
+model Debt {
+  id              String    @id @default(cuid())
+  userId          String
+  direction       String // PAYABLE (utang) | RECEIVABLE (piutang)
+  counterparty    String
+  principal       BigInt
+  interestRateBps Int       @default(0) // basis point per tahun: 1250 = 12,50%
+  interestType    String    @default("NONE") // FLAT | ANNUITY | NONE
+  startDate       DateTime
+  dueDate         DateTime?
+  tenorMonths     Int       @default(1)
+  status          String    @default("AKTIF") // AKTIF | LUNAS | TERLAMBAT
+  note            String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments DebtPayment[]
+
+  @@index([userId])
+  @@index([userId, direction, status])
+  @@index([userId, dueDate])
+}
+
+model DebtPayment {
+  id               String   @id @default(cuid())
+  debtId           String
+  date             DateTime
+  amount           BigInt
+  principalPortion BigInt
+  interestPortion  BigInt
+  transactionId    String?  @unique
+  createdAt        DateTime @default(now())
+
+  debt        Debt         @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([debtId, date])
+}
+
+// -------------------------------- Tabungan ----------------------------------
+
+model SavingsGoal {
+  id           String    @id @default(cuid())
+  userId       String
+  name         String
+  targetAmount BigInt
+  targetDate   DateTime?
+  accountId    String?
+  status       String    @default("AKTIF") // AKTIF | TERCAPAI | BATAL
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account       Account?              @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  contributions SavingsContribution[]
+
+  @@index([userId])
+  @@index([userId, status])
+}
+
+model SavingsContribution {
+  id            String   @id @default(cuid())
+  goalId        String
+  date          DateTime
+  amount        BigInt
+  transactionId String?  @unique
+  createdAt     DateTime @default(now())
+
+  goal        SavingsGoal  @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([goalId, date])
+}
+
+// -------------------------------- Investasi ---------------------------------
+
+model InvestmentAsset {
+  id                 String    @id @default(cuid())
+  userId             String
+  name               String
+  type               String // STOCK | MUTUAL_FUND | BOND | GOLD | CRYPTO | OTHER
+  ticker             String?
+  units              Decimal   @default(0) // pecahan diperbolehkan
+  avgCost            Decimal   @default(0) // rupiah per unit, rata-rata tertimbang
+  lastPrice          Decimal   @default(0) // rupiah per unit
+  lastPriceUpdatedAt DateTime?
+  note               String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions InvestmentTx[]
+
+  @@index([userId])
+  @@index([userId, type])
+}
+
+model InvestmentTx {
+  id            String   @id @default(cuid())
+  assetId       String
+  date          DateTime
+  action        String // BUY | SELL | DIVIDEND
+  units         Decimal  @default(0)
+  pricePerUnit  Decimal  @default(0)
+  fee           BigInt   @default(0) // rupiah
+  amount        BigInt // nilai kas: unit * harga +/- fee, dihitung di server
+  note          String?
+  transactionId String?  @unique
+  createdAt     DateTime @default(now())
+
+  asset       InvestmentAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  transaction Transaction?    @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([assetId, date])
+}
+
+// -------------------------------- Anggaran ----------------------------------
+
+model Budget {
+  id         String   @id @default(cuid())
+  userId     String
+  categoryId String
+  period     String // format YYYY-MM
+  amount     BigInt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, categoryId, period])
+  @@index([userId, period])
+}
