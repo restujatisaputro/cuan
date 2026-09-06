@@ -7,6 +7,8 @@
  */
 export type FormState = {
   pesan?: string;
+  /** true bila `pesan` merupakan galat, bukan konfirmasi keberhasilan. */
+  gagal?: boolean;
   galatField?: Record<string, string[]>;
   /**
    * Nilai yang tadi diisi pengguna. React mengosongkan input tak terkendali
@@ -29,4 +31,14 @@ export function galatField(
   nama: string,
 ): string | undefined {
   return state.galatField?.[nama]?.[0];
+}
+
+/** Menandai state sebagai galat beserta pesannya. */
+export function galat(pesan: string): FormState {
+  return { pesan, gagal: true };
+}
+
+/** Menandai state sebagai berhasil beserta pesannya. */
+export function sukses(pesan: string): FormState {
+  return { pesan };
 }

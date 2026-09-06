@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, UserRound } from "lucide-react";
+import { LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,6 +57,14 @@ export function UserMenu({
             Profil
           </Link>
         </DropdownMenuItem>
+        {peran === "ADMIN" ? (
+          <DropdownMenuItem asChild>
+            <Link href="/admin/pengguna">
+              <ShieldCheck className="size-4" aria-hidden />
+              Kelola pengguna
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild variant="destructive">
           {/* Keluar memakai Server Action (POST) supaya terlindung dari CSRF. */}

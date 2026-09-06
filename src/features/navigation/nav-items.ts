@@ -1,5 +1,12 @@
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, ShieldCheck, UserRound } from "lucide-react";
+import {
+  ArrowLeftRight,
+  FolderTree,
+  LayoutDashboard,
+  ShieldCheck,
+  UserRound,
+  Wallet,
+} from "lucide-react";
 
 export type NavItem = {
   href: string;
@@ -7,7 +14,7 @@ export type NavItem = {
   icon: LucideIcon;
   /** Hanya tampil untuk pengguna ADMIN. */
   adminOnly?: boolean;
-  /** Tampil pada navigasi bawah versi ponsel. */
+  /** Ikut tampil pada navigasi bawah versi ponsel (maksimal empat). */
   utama?: boolean;
 };
 
@@ -17,12 +24,14 @@ export type NavItem = {
  */
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/dasbor", label: "Dasbor", icon: LayoutDashboard, utama: true },
-  { href: "/profil", label: "Profil", icon: UserRound, utama: true },
+  { href: "/transaksi", label: "Transaksi", icon: ArrowLeftRight, utama: true },
+  { href: "/akun", label: "Akun", icon: Wallet, utama: true },
+  { href: "/kategori", label: "Kategori", icon: FolderTree, utama: true },
+  { href: "/profil", label: "Profil", icon: UserRound },
   {
     href: "/admin/pengguna",
     label: "Pengguna",
     icon: ShieldCheck,
     adminOnly: true,
-    utama: true,
   },
 ];
