@@ -3,21 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { getPenggunaSesi } from "@/lib/session";
 import { filterSchema } from "@/features/transactions/schema";
 import { TRANSACTION_TYPE_LABEL, type TransactionType } from "@/lib/constants";
+import { buatCsv } from "@/lib/csv";
 
 /** Batas baris agar berkas tetap wajar dibuka di spreadsheet. */
 const BATAS_BARIS = 10_000;
-
-/**
- * Membungkus satu sel CSV: tanda kutip digandakan, dan sel yang mengandung
- * pemisah, kutip, atau baris baru dikutip penuh.
- */
-function sel(nilai: string | null | undefined): string {
-  const teks = nilai ?? "";
-  if (/[";\n\r]/.test(teks)) {
-    return `"${teks.replace(/"/g, '""')}"`;
-  }
-  return teks;
-}
 
 function tanggalIso(tanggal: Date): string {
   return tanggal.toISOString().slice(0, 10);
@@ -85,26 +74,25 @@ export async function GET(request: NextRequest): Promise<Response> {
     "Sub Kategori",
     "Catatan",
     "Tag",
-  ].join(";");
+  ];
 
   const isi = baris.map((item) => {
     const induk = item.category?.parent?.name ?? null;
     return [
       tanggalIso(item.date),
       TRANSACTION_TYPE_LABEL[item.type as TransactionType],
+      // Nominal ditulis sebagai angka polos supaya tetap bisa dihitung di spreadsheet.
       item.amount.toString(),
-      sel(item.account.name),
-      sel(item.toAccount?.name),
-      sel(induk ?? item.category?.name),
-      sel(induk ? item.category?.name : null),
-      sel(item.note),
-      sel(item.tags),
-    ].join(";");
+      item.account.name,
+      item.toAccount?.name ?? null,
+      induk ?? item.category?.name ?? null,
+      induk ? (item.category?.name ?? null) : null,
+      item.note,
+      item.tags,
+    ];
   });
 
-  // BOM ditulis eksplisit sebagai escape supaya tidak hilang saat berkas
-  // sumber ini disunting editor yang menyembunyikan karakter tak terlihat.
-  const berkas = "\uFEFF" + [judul, ...isi].join("\r\n") + "\r\n";
+  const berkas = buatCsv(judul, isi);
   const namaBerkas = `transaksi-${filter.dari ?? "awal"}-sampai-${filter.sampai ?? tanggalIso(new Date())}.csv`;
 
   return new Response(berkas, {

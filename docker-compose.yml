@@ -1,0 +1,34 @@
+services:
+  cuan:
+    build: .
+    image: cuan:latest
+    container_name: cuan
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Jalur di dalam container; relatif terhadap folder prisma/.
+      DATABASE_URL: "file:../data/cuan.db"
+    ports:
+      - "3000:3000"
+    volumes:
+      # Basis data dan hasil backup tetap ada di host.
+      - ./data:/app/data
+      - ./backup:/app/backup
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/masuk"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # Membuka aplikasi ke internet lewat Cloudflare Tunnel tanpa perlu port
+  # forwarding. Isi TUNNEL_TOKEN di .env, lalu jalankan:
+  #   docker compose --profile tunnel up -d
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cuan-tunnel
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
+    depends_on:
+      - cuan

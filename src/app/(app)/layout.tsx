@@ -12,6 +12,13 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[15rem_1fr]">
+      {/* Pintasan papan ketik: melompati navigasi langsung ke isi halaman. */}
+      <a
+        href="#konten-utama"
+        className="bg-background focus:ring-ring sr-only z-50 rounded-md border px-4 py-2 text-sm font-medium focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:ring-2"
+      >
+        Lompat ke konten utama
+      </a>
       <aside className="bg-muted/30 hidden border-r md:flex md:min-h-dvh md:flex-col md:gap-6 md:p-4">
         <Link href="/dasbor" className="flex items-center gap-2 px-2 py-1 text-lg font-semibold">
           <span className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-lg">
@@ -38,7 +45,7 @@ export default async function AppLayout({
           />
         </header>
 
-        <main className="flex-1 px-4 pb-24 pt-6 md:pb-10">
+        <main id="konten-utama" tabIndex={-1} className="flex-1 px-4 pb-24 pt-6 md:pb-10">
           <div className="mx-auto w-full max-w-5xl">{children}</div>
         </main>
       </div>
