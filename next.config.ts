@@ -44,8 +44,9 @@ const headerKeamanan = [
 ];
 
 const nextConfig: NextConfig = {
-  // Menghasilkan bundel mandiri agar image Docker tetap ramping.
-  output: "standalone",
+  // Bundel mandiri hanya dipakai saat membangun image Docker; di mesin sendiri
+  // "next start" tetap dipakai seperti biasa (keduanya tidak bisa digabung).
+  output: process.env.NEXT_OUTPUT_STANDALONE === "1" ? "standalone" : undefined,
   poweredByHeader: false,
   async headers() {
     return [{ source: "/:path*", headers: headerKeamanan }];

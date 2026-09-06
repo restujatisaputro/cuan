@@ -1,0 +1,13 @@
+# Normalisasi akhir baris agar berkas yang dieksekusi di Linux tetap LF walau
+# di-checkout di Windows. Skrip shell dengan CRLF akan ditolak oleh kernel
+# ("no such file or directory" pada baris shebang).
+* text=auto eol=lf
+*.sh text eol=lf
+Dockerfile text eol=lf
+docker-entrypoint.sh text eol=lf
+
+# Berkas biner tidak boleh disentuh.
+*.png binary
+*.jpg binary
+*.ico binary
+*.db binary
