@@ -21,7 +21,7 @@
     "path": "./android/cuan.keystore",
     "alias": "cuan"
   },
-  "appVersionName": "1.0.0",
+  "appVersion": "1.0.0",
   "appVersionCode": 1,
   "shellApkVersion": 0,
   "webManifestUrl": "https://cuan.restujati.uk/manifest.webmanifest",
@@ -36,13 +36,13 @@
   "shortcuts": [
     {
       "name": "Catat transaksi",
-      "short_name": "Transaksi",
+      "shortName": "Transaksi",
       "url": "/transaksi",
       "chosenIconUrl": "https://cuan.restujati.uk/ikon/icon-192.png"
     },
     {
       "name": "Laporan",
-      "short_name": "Laporan",
+      "shortName": "Laporan",
       "url": "/laporan",
       "chosenIconUrl": "https://cuan.restujati.uk/ikon/icon-192.png"
     }

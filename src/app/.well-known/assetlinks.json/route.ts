@@ -11,8 +11,14 @@
  * Ambil nilainya dengan:
  *
  *   keytool -list -v -keystore cuan.keystore -alias cuan
+ *
+ * Wajib "force-dynamic". Dengan "force-static", Next.js menjalankan handler ini
+ * sekali saja saat `next build` -- dan tahap builder di Dockerfile tidak punya
+ * TWA_PACKAGE_NAME maupun TWA_SHA256_FINGERPRINT, sehingga hasil kosong "[]"
+ * ikut terpanggang ke dalam image dan .env saat runtime tidak lagi berpengaruh.
+ * Verifikasi TWA lalu gagal tanpa pesan galat apa pun.
  */
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 
 export function GET(): Response {
   const paket = process.env.TWA_PACKAGE_NAME;
