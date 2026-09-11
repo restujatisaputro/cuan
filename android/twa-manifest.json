@@ -1,0 +1,51 @@
+{
+  "packageId": "uk.restujati.cuan",
+  "host": "cuan.restujati.uk",
+  "name": "Cuan — Catatan Keuangan Pribadi",
+  "launcherName": "Cuan",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#1c1c1c",
+  "themeColorDark": "#1c1c1c",
+  "navigationColor": "#1c1c1c",
+  "navigationColorDark": "#1c1c1c",
+  "navigationDividerColor": "#1c1c1c",
+  "navigationDividerColorDark": "#1c1c1c",
+  "backgroundColor": "#1c1c1c",
+  "enableNotifications": false,
+  "startUrl": "/dasbor",
+  "iconUrl": "https://cuan.restujati.uk/ikon/icon-512.png",
+  "maskableIconUrl": "https://cuan.restujati.uk/ikon/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android/cuan.keystore",
+    "alias": "cuan"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shellApkVersion": 0,
+  "webManifestUrl": "https://cuan.restujati.uk/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": { "enabled": false },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://cuan.restujati.uk/",
+  "minSdkVersion": 21,
+  "shortcuts": [
+    {
+      "name": "Catat transaksi",
+      "short_name": "Transaksi",
+      "url": "/transaksi",
+      "chosenIconUrl": "https://cuan.restujati.uk/ikon/icon-192.png"
+    },
+    {
+      "name": "Laporan",
+      "short_name": "Laporan",
+      "url": "/laporan",
+      "chosenIconUrl": "https://cuan.restujati.uk/ikon/icon-192.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli"
+}

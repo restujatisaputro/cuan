@@ -196,6 +196,39 @@ router.
 `AUTH_TRUST_HOST` diperlukan karena aplikasi berada di belakang proksi.
 Cookie sesi otomatis memakai atribut `Secure` saat `NODE_ENV=production`.
 
+## Aplikasi Android
+
+Cuan bisa dipasang di Android tanpa menduplikasi satu baris UI pun.
+
+- **PWA** — aktif langsung. Buka `https://cuan.restujati.uk` di Chrome Android,
+  pilih "Tambahkan ke layar utama". Muncul sebagai aplikasi tersendiri dengan
+  ikonnya, tanpa bilah alamat.
+- **APK/TWA** — pembungkus tipis di sekeliling PWA yang sama. Langkahnya ada di
+  [`android/README.md`](android/README.md).
+
+Empat berkas wajib terjangkau **tanpa cookie**, diatur di `BERKAS_TERBUKA`
+(`src/auth.config.ts`) dan matcher `src/middleware.ts`:
+`/manifest.webmanifest`, `/sw.js`, `/offline`, dan
+`/.well-known/assetlinks.json`. Bila salah satunya ikut tersaring middleware,
+PWA gagal terpasang dan TWA muncul dengan bilah alamat Chrome.
+
+### Perilaku luring
+
+Service worker (`public/sw.js`) menyimpan aset statis dan halaman yang sudah
+pernah dibuka, sehingga aplikasi tetap terbuka saat tunnel putus. Tiga aturan
+yang memandunya:
+
+1. Hanya GET yang disentuh — Server Action adalah POST ke URL halaman yang
+   sama, dan ikut ter-cache berarti pencatatan bisa rusak.
+2. Seluruh `/api/` tidak pernah masuk cache.
+3. Cache halaman dipisah per pengguna lewat nama cache, dan dibuang begitu
+   sesi berganti atau berakhir. Cuan multi-pengguna; dasbor orang lain tidak
+   boleh muncul walau sekejap.
+
+Pencatatan transaksi baru tetap memerlukan koneksi. Antrean tulis luring
+sengaja belum dibuat: sinkronisasi yang salah pada aplikasi keuangan lebih
+berbahaya daripada tidak ada sinkronisasi.
+
 ## Keamanan
 
 - Password di-hash dengan **bcrypt cost 12**; hash tidak pernah keluar dari server.

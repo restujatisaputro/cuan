@@ -9,6 +9,27 @@ import { NextResponse } from "next/server";
 /** Halaman yang boleh diakses tanpa login. */
 const RUTE_PUBLIK = ["/masuk", "/daftar"];
 
+/**
+ * Berkas yang harus terbuka untuk SIAPA PUN, masuk maupun tidak.
+ *
+ * Berbeda dari RUTE_PUBLIK yang memantulkan pengguna terautentikasi ke dasbor
+ * -- perlakuan itu akan merusak berkas ini:
+ *
+ * - /manifest.webmanifest  Chrome mengambilnya sebelum pengguna sempat masuk.
+ * - /sw.js                 Kalau dijawab HTML pengalihan, pendaftaran gagal.
+ * - /offline               Justru dipakai ketika sesi tak bisa diverifikasi.
+ * - /.well-known/assetlinks.json
+ *                          Diambil perangkat Android tanpa cookie sama sekali;
+ *                          kalau gagal, TWA jatuh kembali jadi tab Chrome
+ *                          lengkap dengan bilah alamat.
+ */
+const BERKAS_TERBUKA = [
+  "/sw.js",
+  "/manifest.webmanifest",
+  "/offline",
+  "/.well-known/assetlinks.json",
+];
+
 /** Awalan rute yang hanya boleh diakses ADMIN. */
 const RUTE_ADMIN = ["/admin"];
 
@@ -57,6 +78,10 @@ export const authConfig = {
     authorized({ auth, request }) {
       const { pathname, search } = request.nextUrl;
       const sudahMasuk = auth?.user != null;
+
+      // Dicek paling awal: tidak boleh dipantulkan ke mana pun, apa pun sesinya.
+      if (BERKAS_TERBUKA.includes(pathname)) return true;
+
       const rutePublik = RUTE_PUBLIK.some(
         (rute) => pathname === rute || pathname.startsWith(`${rute}/`),
       );

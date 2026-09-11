@@ -16,6 +16,10 @@ const CSP = [
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "connect-src 'self'",
+  // Service worker dan manifest keduanya dari domain sendiri. Sebenarnya sudah
+  // tercakup default-src, tapi ditulis eksplisit agar niatnya terbaca.
+  "worker-src 'self'",
+  "manifest-src 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
@@ -49,7 +53,25 @@ const nextConfig: NextConfig = {
   output: process.env.NEXT_OUTPUT_STANDALONE === "1" ? "standalone" : undefined,
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: headerKeamanan }];
+    return [
+      { source: "/:path*", headers: headerKeamanan },
+      {
+        // Service worker tidak boleh di-cache peramban. Kalau tersimpan lama,
+        // perbaikan pada sw.js baru sampai ke pengguna berhari-hari kemudian.
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+      {
+        source: "/manifest.webmanifest",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=3600" },
+          { key: "Content-Type", value: "application/manifest+json" },
+        ],
+      },
+    ];
   },
 };
 

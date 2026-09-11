@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Wallet } from "lucide-react";
 import { BottomNav, SidebarNav } from "@/components/app-nav";
 import { UserMenu } from "@/components/user-menu";
+import { LaporSesi } from "@/components/pwa";
 import { wajibMasuk } from "@/lib/session";
 
 export default async function AppLayout({
@@ -12,6 +13,7 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[15rem_1fr]">
+      <LaporSesi id={pengguna.id} />
       {/* Pintasan papan ketik: melompati navigasi langsung ke isi halaman. */}
       <a
         href="#konten-utama"

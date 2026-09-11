@@ -53,3 +53,9 @@ next-env.d.ts
 
 # izinkan contoh env ikut ter-commit
 !.env.example
+
+# Kunci penandatanganan APK — jangan pernah masuk repositori.
+android/*.keystore
+android/*.jks
+android/app-release-*.apk
+android/app-release-*.aab
