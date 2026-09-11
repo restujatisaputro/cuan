@@ -229,6 +229,74 @@ Pencatatan transaksi baru tetap memerlukan koneksi. Antrean tulis luring
 sengaja belum dibuat: sinkronisasi yang salah pada aplikasi keuangan lebih
 berbahaya daripada tidak ada sinkronisasi.
 
+## API v1 untuk klien non-peramban
+
+Antarmuka web memakai Server Action, yang merupakan protokol internal Next.js
+dan tidak bisa dipanggil klien Android. `/api/v1` menyediakan pintu kedua ke
+aturan yang **sama persis** — bukan salinannya.
+
+Kuncinya ada pada pemisahan berikut, dan hanya modul transaksi yang sudah
+mengikutinya:
+
+| Berkas | Isi | Dipanggil oleh |
+| --- | --- | --- |
+| `features/*/commands.ts` | Seluruh aturan tulis, bebas urusan web | keduanya |
+| `features/*/service.ts` | Kueri baca | keduanya |
+| `features/*/actions.ts` | Terjemahan FormData ⇄ FormState | web |
+| `app/api/v1/**/route.ts` | Terjemahan HTTP ⇄ JSON | klien bearer |
+
+Menambah modul berikutnya berarti memindahkan aturan dari `actions.ts` ke
+`commands.ts`, lalu menulis route handler tipis di atasnya. Bila suatu saat
+aturan ditulis ulang di dalam route handler, artinya pemisahan ini sudah bocor.
+
+### Autentikasi
+
+Klien Android tidak punya wadah cookie peramban, jadi sesi cookie Auth.js tidak
+berlaku di sana. Tukar kredensial sekali dengan token bearer:
+
+```bash
+curl -X POST https://cuan.restujati.uk/api/v1/auth/masuk \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"…","password":"…","namaPerangkat":"Pixel 7"}'
+```
+
+Token berlaku 180 hari, tersimpan di basis data hanya sebagai hash SHA-256, dan
+bisa dicabut kapan saja lewat `POST /api/v1/auth/keluar`. Simpan di Android
+Keystore, jangan di SharedPreferences biasa.
+
+`/api/v1` sengaja berada **di luar** matcher middleware. Di dalamnya, permintaan
+tanpa cookie akan dipantulkan ke `/masuk` dengan 307 berisi HTML, sedangkan yang
+dibutuhkan klien adalah 401 berisi JSON.
+
+### Endpoint
+
+| Metode | Jalur | Keterangan |
+| --- | --- | --- |
+| `POST` | `/api/v1/auth/masuk` | Menukar email+password dengan token |
+| `POST` | `/api/v1/auth/keluar` | Mencabut token yang sedang dipakai |
+| `GET` | `/api/v1/transaksi` | Daftar berfilter, parameter sama dengan halaman web |
+| `POST` | `/api/v1/transaksi` | Mencatat transaksi (201) |
+| `PUT` | `/api/v1/transaksi/:id` | Mengganti seluruh isi transaksi |
+| `DELETE` | `/api/v1/transaksi/:id` | Menghapus transaksi |
+
+`PUT`, bukan `PATCH`: aturan transaksi bersifat silang-medan — transfer wajib
+berakun tujuan, pemasukan wajib berkategori — sehingga pembaruan sebagian akan
+melewati pemeriksaan itu.
+
+### Membaca galat
+
+Bercabanglah pada medan `kode`, jangan pada `pesan`; teksnya bisa berubah.
+
+| `kode` | HTTP | Arti |
+| --- | --- | --- |
+| `TIDAK_DIIZINKAN` | 401 | Token tidak sah, dicabut, atau kedaluwarsa |
+| `VALIDASI` | 422 | Isian ditolak; `galatField` memetakan per medan |
+| `TIDAK_DITEMUKAN` | 404 | Baris tidak ada, atau milik pengguna lain |
+| `TERKAIT_MODUL_LAIN` | 409 | Dimiliki modul utang/tabungan/investasi |
+
+Nominal dikirim sebagai **string**, bukan number. Nilainya BigInt rupiah penuh;
+di atas 2^53 sebuah number JavaScript mulai kehilangan digit.
+
 ## Keamanan
 
 - Password di-hash dengan **bcrypt cost 12**; hash tidak pernah keluar dari server.

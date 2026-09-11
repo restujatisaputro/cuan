@@ -32,11 +32,22 @@ export const tanggalKalender = z
     return tanggal;
   });
 
+/**
+ * Id yang boleh kosong.
+ *
+ * Tiga bentuk "kosong" diterima karena skema ini melayani dua pemanggil dengan
+ * kebiasaan berbeda. Form web selalu mengirim setiap medan, jadi yang tiba
+ * berupa string kosong atau "none" dari komponen Select. Klien JSON justru
+ * wajar menghilangkan medan yang tidak relevan -- pengeluaran tidak punya akun
+ * tujuan -- sehingga `undefined` pun harus lolos. Ketiganya menjadi null.
+ */
 const idOpsional = z
-  .string()
-  .trim()
-  .transform((nilai) => (nilai === "" || nilai === "none" ? null : nilai))
-  .nullable();
+  .union([z.string(), z.null()])
+  .optional()
+  .transform((nilai) => {
+    const bersih = typeof nilai === "string" ? nilai.trim() : "";
+    return bersih === "" || bersih === "none" ? null : bersih;
+  });
 
 export const transactionSchema = z
   .object({

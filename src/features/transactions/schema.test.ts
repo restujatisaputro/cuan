@@ -154,3 +154,74 @@ describe("filterSchema", () => {
     });
   });
 });
+
+/**
+ * Skema ini melayani dua pemanggil: form web yang selalu mengirim setiap medan,
+ * dan klien JSON /api/v1 yang wajar menghilangkan medan tak relevan. Kasus di
+ * bawah menjaga keduanya tetap jalan -- sebelumnya klien JSON tertolak 422
+ * hanya karena tidak menyertakan "toAccountId" pada sebuah pengeluaran.
+ */
+describe("transactionSchema untuk klien JSON", () => {
+  const dasarJson = {
+    type: "EXPENSE" as const,
+    date: "2026-09-06",
+    amount: "17500",
+    accountId: "akun-1",
+    categoryId: "kat-1",
+  };
+
+  it("menerima pengeluaran tanpa medan toAccountId sama sekali", () => {
+    const hasil = transactionSchema.safeParse(dasarJson);
+    expect(hasil.success).toBe(true);
+    if (hasil.success) expect(hasil.data.toAccountId).toBeNull();
+  });
+
+  it("menerima null sebagai ganti string kosong", () => {
+    const hasil = transactionSchema.safeParse({
+      ...dasarJson,
+      toAccountId: null,
+    });
+    expect(hasil.success).toBe(true);
+    if (hasil.success) expect(hasil.data.toAccountId).toBeNull();
+  });
+
+  it("tetap mewajibkan akun tujuan pada transfer meski medannya dihilangkan", () => {
+    const hasil = transactionSchema.safeParse({
+      type: "TRANSFER",
+      date: "2026-09-06",
+      amount: "17500",
+      accountId: "akun-1",
+    });
+    expect(hasil.success).toBe(false);
+    if (!hasil.success) {
+      expect(hasil.error.issues[0]?.path).toEqual(["toAccountId"]);
+    }
+  });
+
+  it("tetap mewajibkan kategori pada pemasukan meski medannya dihilangkan", () => {
+    const hasil = transactionSchema.safeParse({
+      type: "INCOME",
+      date: "2026-09-06",
+      amount: "17500",
+      accountId: "akun-1",
+    });
+    expect(hasil.success).toBe(false);
+    if (!hasil.success) {
+      expect(hasil.error.issues[0]?.path).toEqual(["categoryId"]);
+    }
+  });
+
+  it("membuang spasi dan memperlakukan \"none\" sebagai kosong", () => {
+    const hasil = transactionSchema.safeParse({
+      ...dasarJson,
+      type: "TRANSFER",
+      categoryId: "none",
+      toAccountId: "  akun-2  ",
+    });
+    expect(hasil.success).toBe(true);
+    if (hasil.success) {
+      expect(hasil.data.categoryId).toBeNull();
+      expect(hasil.data.toAccountId).toBe("akun-2");
+    }
+  });
+});

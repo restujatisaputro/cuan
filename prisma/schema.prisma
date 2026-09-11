@@ -44,8 +44,37 @@ model User {
   savingsGoals     SavingsGoal[]
   investmentAssets InvestmentAsset[]
   budgets          Budget[]
+  apiTokens        ApiToken[]
 
   @@index([role])
+}
+
+/// Token bearer untuk klien yang tidak punya wadah cookie peramban -- saat ini
+/// aplikasi Android. Sesi web tetap memakai cookie Auth.js dan tidak menyentuh
+/// tabel ini.
+///
+/// tokenHash memakai SHA-256, bukan bcrypt. Token dibangkitkan dari 32 byte
+/// acak, jadi tidak ada yang bisa ditebak dan peregangan kata sandi tidak
+/// diperlukan. Yang justru diperlukan adalah pencarian lewat indeks: dengan
+/// bcrypt, satu permintaan harus membandingkan token terhadap SETIAP baris,
+/// karena hash bcrypt bergaram acak sehingga tidak bisa dijadikan kunci cari.
+model ApiToken {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Ditampilkan pada daftar perangkat, misal "Cuan Android - Pixel 7".
+  name      String
+  tokenHash String @unique
+
+  createdAt DateTime @default(now())
+  /// Diperbarui paling sering sekali per jam; lihat catatan di lib/api-auth.ts.
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  /// Terisi saat token dicabut; barisnya tetap disimpan sebagai jejak audit.
+  revokedAt DateTime?
+
+  @@index([userId])
 }
 
 // ---------------------------------- Akun ------------------------------------
