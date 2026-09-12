@@ -1,8 +1,18 @@
 /**
  * Mencadangkan basis data SQLite ke folder backup bertanggal.
  *
- * Jalankan: npm run db:backup
+ * Dari mesin pengembangan:  npm run db:backup
+ * Dari dalam container:     docker compose exec cuan node scripts/backup-db.mjs
+ *
  * Folder tujuan diambil dari BACKUP_DIR (default: ./backup).
+ *
+ * Sengaja JavaScript polos, bukan TypeScript.
+ *
+ * Versi TypeScript-nya memerlukan tsx, yang merupakan devDependency dan tidak
+ * ikut ke dalam image produksi. Akibatnya skrip cadangan justru tidak bisa
+ * dijalankan di satu-satunya mesin yang benar-benar membutuhkannya: server,
+ * yang tidak punya Node di host sama sekali. Sebagai .mjs, berkas yang sama
+ * jalan di kedua tempat tanpa perkakas tambahan.
  *
  * Memakai `VACUUM INTO`, bukan penyalinan berkas.
  *
@@ -24,7 +34,7 @@ import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 
 /** DATABASE_URL bergaya "file:../data/cuan.db" relatif terhadap folder prisma/. */
-function resolveDatabaseFile(): string {
+function resolveDatabaseFile() {
   const url = process.env.DATABASE_URL;
   if (!url) {
     throw new Error("DATABASE_URL belum diisi. Salin .env.example menjadi .env.");
@@ -35,14 +45,12 @@ function resolveDatabaseFile(): string {
     );
   }
   const raw = url.slice("file:".length);
-  return path.isAbsolute(raw)
-    ? raw
-    : path.resolve(process.cwd(), "prisma", raw);
+  return path.isAbsolute(raw) ? raw : path.resolve(process.cwd(), "prisma", raw);
 }
 
-function timestamp(): string {
+function timestamp() {
   const now = new Date();
-  const pad = (value: number) => String(value).padStart(2, "0");
+  const pad = (value) => String(value).padStart(2, "0");
   return [
     now.getFullYear(),
     pad(now.getMonth() + 1),
@@ -54,7 +62,7 @@ function timestamp(): string {
   ].join("");
 }
 
-async function main(): Promise<void> {
+async function main() {
   const source = resolveDatabaseFile();
   if (!existsSync(source)) {
     throw new Error(`Berkas basis data tidak ditemukan: ${source}`);
@@ -96,7 +104,7 @@ async function main(): Promise<void> {
   console.log(`Total salinan di ${backupDir}: ${files.length}`);
 }
 
-main().catch((error: unknown) => {
+main().catch((error) => {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;
 });

@@ -142,14 +142,40 @@ transaksi basis data yang sama sehingga tidak pernah dobel.
 ## Backup dan pemulihan
 
 ```bash
-npm run db:backup        # menyalin ke ./backup/cuan-YYYYMMDD-HHMMSS.db
+npm run db:backup                                  # dari mesin pengembangan
+docker compose exec cuan node scripts/backup-db.mjs  # dari dalam container
 ```
 
-Berkas WAL/SHM ikut disalin bila ada. Untuk memulihkan, hentikan aplikasi lalu
-timpa `data/cuan.db` dengan salinan yang diinginkan.
+Keduanya menjalankan berkas yang sama. Bentuknya `.mjs`, bukan TypeScript,
+supaya tidak memerlukan `tsx` — di sebagian server Node hanya tersedia di dalam
+container, dan skrip yang butuh perkakas pengembangan tidak akan bisa dipakai
+justru di mesin yang paling membutuhkannya.
 
-Jadwalkan backup harian dengan cara yang sama seperti penjadwal di atas, atau
-cukup salin folder `data/` — seluruh basis data hanya satu berkas.
+**Jangan mencadangkan dengan `cp data/cuan.db`.** Sejak `journal_mode` menjadi
+WAL, transaksi terbaru tinggal di `cuan.db-wal` dan belum tentu sudah masuk ke
+berkas utama; menyalin berkas utama saja menghasilkan salinan yang tertinggal
+isi. Menyalin ketiganya satu per satu juga tidak menolong — penyalinan tidak
+atomik, jadi hasilnya tiga potret pada tiga saat berbeda. Skrip di atas memakai
+`VACUUM INTO`, yang membaca dalam satu transaksi dan menghasilkan satu berkas
+mandiri, konsisten, dan sudah rapat, tanpa menghentikan aplikasi.
+
+Untuk memulihkan, hentikan aplikasi, hapus `cuan.db-wal` dan `cuan.db-shm` bila
+ada, lalu timpa `data/cuan.db` dengan salinan yang diinginkan.
+
+### Memastikan WAL benar-benar aktif
+
+```bash
+od -An -tu1 -j18 -N2 data/cuan.db     # 2 2 = WAL, 1 1 = jurnal lama
+```
+
+Dua byte pada offset 18 dan 19 adalah penanda mode di kepala berkas. Cara ini
+bekerja tanpa `sqlite3` terpasang.
+
+**Jangan menilainya dari ada tidaknya `cuan.db-wal`.** Kedua berkas pendamping
+baru lahir pada transaksi tulis pertama, bukan saat koneksi dibuka — container
+yang baru naik dan belum dipakai tetap hanya punya `cuan.db` meski WAL sudah
+aktif. Aplikasi juga mencatat peringatan bila modenya ternyata bukan WAL, jadi
+log yang sunyi adalah pertanda baik.
 
 ## Deploy dengan Docker
 

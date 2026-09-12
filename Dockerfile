@@ -113,6 +113,13 @@ COPY --from=deps --chown=cuan:cuan /app/node_modules/@prisma ./node_modules/@pri
 # CLI migrasi beserta dependensinya, dipakai sekali saat container naik.
 COPY --from=migrator --chown=cuan:cuan /migrator/node_modules ./migrator/node_modules
 
+# Skrip cadangan ikut masuk image karena di sebagian server Node hanya ada di
+# dalam container, tidak di host -- tanpa ini, satu-satunya mesin yang benar
+# benar butuh mencadangkan justru tidak bisa menjalankannya. Berbentuk .mjs
+# agar tidak memerlukan tsx, yang merupakan devDependency:
+#   docker compose exec cuan node scripts/backup-db.mjs
+COPY --from=builder --chown=cuan:cuan /app/scripts/backup-db.mjs ./scripts/backup-db.mjs
+
 COPY --chown=cuan:cuan docker-entrypoint.sh ./docker-entrypoint.sh
 
 # sed membuang CR bila berkas ter-checkout dengan akhir baris Windows: skrip
