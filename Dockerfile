@@ -15,6 +15,25 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma
 RUN npm ci
 
+# Membuang mesin kueri WASM untuk basis data yang tidak dipakai Cuan.
+#
+# @prisma/client mengirim mesin kueri dan kompiler kueri untuk SETIAP basis data
+# yang didukung dalam bentuk WASM base64 -- CockroachDB, PostgreSQL, MySQL, SQL
+# Server, dan SQLite -- masing-masing digandakan sebagai .js dan .mjs. Totalnya
+# 53 MB. Cuan hanya memakai SQLite, jadi empat basis data lainnya adalah beban
+# mati sekitar 42 MB.
+#
+# Varian SQLite sengaja DIPERTAHANKAN meskipun runtime memakai engine native
+# (libquery_engine-linux-musl-*.so.node): "prisma generate" memuat berkas itu
+# saat build dan berhenti dengan "Cannot find module ...
+# query_engine_bg.sqlite.wasm-base64.js" bila ia tidak ada. Ini sudah dicoba.
+#
+# Pemangkasan dilakukan DI SINI, bukan di tahap runner, karena lapisan Docker
+# bersifat menumpuk: menghapus berkas setelah COPY hanya menambah lapisan baru
+# sementara datanya tetap utuh di lapisan sebelumnya.
+RUN find node_modules/@prisma/client/runtime -name '*wasm-base64*' ! -name '*sqlite*' -delete \
+  && find node_modules/@prisma/client/runtime -name '*react-native*' -delete
+
 # --------------------------------------------------------------------------
 # Tahap 2: CLI migrasi
 # --------------------------------------------------------------------------
@@ -27,6 +46,12 @@ RUN apk add --no-cache openssl
 # ikut memasang seluruh dependensi aplikasi, bukan hanya Prisma CLI.
 COPY package.json /tmp/package.json
 RUN npm install --no-save --omit=dev       "prisma@$(node -p "require('/tmp/package.json').devDependencies.prisma")"   && rm -f /tmp/package.json
+
+# "prisma migrate deploy" hanya memakai schema-engine. Paket @prisma/engines
+# turut membawa libquery_engine (16,7 MB) yang di image ini sudah ada dua kali
+# lagi -- di .prisma/client dan di node_modules/@prisma milik aplikasi. Salinan
+# ketiga di sini tidak pernah dimuat.
+RUN rm -f node_modules/@prisma/engines/libquery_engine-*.so.node
 
 # --------------------------------------------------------------------------
 # Tahap 3: build
@@ -45,6 +70,21 @@ ENV NEXT_OUTPUT_STANDALONE=1
 # sungguhan disuntikkan lewat variabel lingkungan saat container berjalan.
 ENV DATABASE_URL="file:../data/cuan.db"
 RUN npm run build
+
+# Membersihkan keluaran standalone dari berkas yang tidak dipakai saat runtime.
+#
+# next build menelusuri impor untuk memutuskan apa yang ikut, dan penelusuran
+# itu menyapu lebih luas daripada yang benar-benar dieksekusi:
+#
+# - typescript (8,7 MB) ikut terbawa lewat rantai impor peralatan build.
+#   Tidak ada TypeScript yang dikompilasi saat container berjalan.
+# - sharp mengirim libvips untuk glibc DAN musl, masing-masing sekitar 18 MB.
+#   Image ini Alpine, jadi hanya varian musl yang bisa dimuat; varian glibc
+#   tidak akan pernah tersentuh.
+RUN rm -rf .next/standalone/node_modules/typescript \
+  .next/standalone/node_modules/@img/sharp-libvips-linux-x64 \
+  .next/standalone/node_modules/@img/sharp-linux-x64 \
+  .next/standalone/node_modules/@img/sharp-wasm32
 
 # --------------------------------------------------------------------------
 # Tahap 4: runtime

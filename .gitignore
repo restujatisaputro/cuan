@@ -54,6 +54,17 @@ next-env.d.ts
 # izinkan contoh env ikut ter-commit
 !.env.example
 
+# Penyesuaian compose khas satu mesin: binding porta, jaringan, batas memori.
+# Sengaja tidak ikut ter-commit karena isinya berbeda di tiap host -- server
+# produksi memetakan 127.0.0.1:8091 sebab seluruh domain masuk lewat satu
+# cloudflared di host, bukan porta publik.
+#
+# Berkas ini TIDAK TERGANTIKAN dan hanya ada di mesin bersangkutan. Tanpa baris
+# ini statusnya untracked tanpa perlindungan apa pun: `git clean -fd` akan
+# menghapusnya, dan checkout ke branch yang kebetulan memuat berkas bernama
+# sama akan ditolak di tengah jalan. Cadangkan sebelum operasi git besar.
+docker-compose.override.yml
+
 # Kunci penandatanganan APK — jangan pernah masuk repositori.
 android/*.keystore
 android/*.jks

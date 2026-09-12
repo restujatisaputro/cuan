@@ -20,9 +20,24 @@
  */
 export const dynamic = "force-dynamic";
 
+/**
+ * Membuang spasi dan tanda kutip pembungkus dari nilai .env.
+ *
+ * `env_file` pada docker compose melucuti tanda kutip, tetapi
+ * `docker run --env-file` TIDAK -- nilainya sampai ke sini sebagai
+ * `"uk.restujati.cuan"` lengkap dengan kutipnya. Sidik jari berkutip tidak akan
+ * pernah cocok dengan sertifikat APK, dan kegagalannya sunyi total: berkas ini
+ * tetap menjawab 200 dengan JSON yang tampak benar, Android sekadar menolak
+ * memverifikasi dan memunculkan bilah alamat Chrome tanpa pesan apa pun.
+ */
+function bersihkan(nilai: string | undefined): string | undefined {
+  const rapi = nilai?.trim().replace(/^["']|["']$/g, "").trim();
+  return rapi ? rapi : undefined;
+}
+
 export function GET(): Response {
-  const paket = process.env.TWA_PACKAGE_NAME;
-  const sidikJari = process.env.TWA_SHA256_FINGERPRINT;
+  const paket = bersihkan(process.env.TWA_PACKAGE_NAME);
+  const sidikJari = bersihkan(process.env.TWA_SHA256_FINGERPRINT);
 
   // Selama belum dikonfigurasi, jawab dengan senarai kosong yang tetap sah
   // sebagai JSON. Android akan menyimpulkan "belum terverifikasi" alih-alih

@@ -165,9 +165,20 @@ dan `backup/` dipetakan ke host, jadi basis data tetap aman saat image
 diperbarui:
 
 ```bash
-docker compose pull && docker compose up -d --build   # perbarui aplikasi
-docker compose logs -f cuan                            # lihat log
+docker compose build cuan && docker compose up -d cuan   # perbarui aplikasi
+docker compose logs -f cuan                              # lihat log
 ```
+
+Nama service sengaja disebut. Tanpa itu, perintah berlaku ke seluruh service
+yang terbaca — termasuk apa pun yang ditambahkan `docker-compose.override.yml`
+milik mesin tersebut, yang tidak terlihat dari repositori ini.
+
+Penyesuaian khas satu mesin ditaruh di `docker-compose.override.yml`, yang
+otomatis terbaca Compose dan tidak ikut ter-commit. Server produksi memakainya
+untuk memetakan `127.0.0.1:8091` karena seluruh domain masuk lewat satu
+cloudflared di host. **Berkas itu tidak tergantikan dan hanya ada di mesin
+bersangkutan** — cadangkan sebelum `git checkout` antar-branch atau
+`git clean`.
 
 Image memakai keluaran *standalone* Next.js dan berjalan sebagai pengguna tanpa
 hak root di dalam container.
